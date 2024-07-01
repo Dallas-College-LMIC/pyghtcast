@@ -31,7 +31,7 @@ def build_query_corelmi(cols: list, constraints: list[dict] = []) -> dict:
     return query
 
 
-def query_corelmi(dataset: str, query: dict, datarun: str = "2024.1") -> pd.DataFrame:
+def query_corelmi(dataset: str, query: dict, datarun: str = "2024.2") -> pd.DataFrame:
     return conn.post_retrieve_df(dataset, query, datarun)
 
 
