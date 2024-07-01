@@ -52,7 +52,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 import time
 
-from .base import EmsiBaseConnection
+from base import EmsiBaseConnection
 
 
 class Limiter:

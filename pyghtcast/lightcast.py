@@ -1,8 +1,8 @@
-import lightcast_api.coreLmi as corelmi
+import coreLmi
 import pandas as pd
 
 class Lightcast:
-    conn = corelmi.CoreLMIConnection()
+    conn = coreLmi.CoreLMIConnection()
     def __init__(self):
         pass
 
