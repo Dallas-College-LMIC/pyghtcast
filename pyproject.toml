@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "pyghtcast"
+version = "0.1.0"
+description = "A library to interact with Lightcast API"
+authors = ["Ammar N <ananjiani@dallascollege.edu>"]
+license = "GPL3"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pandas = "^2.2.2"
+requests = "^2.32.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
