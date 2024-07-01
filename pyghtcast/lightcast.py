@@ -1,4 +1,4 @@
-import coreLmi
+from . import coreLmi
 import pandas as pd
 
 class Lightcast:
