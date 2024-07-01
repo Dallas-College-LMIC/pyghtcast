@@ -2,9 +2,10 @@ from . import coreLmi
 import pandas as pd
 
 class Lightcast:
-    conn = coreLmi.CoreLMIConnection()
+    conn: coreLmi.CoreLMIConnection = None
+
     def __init__(self):
-        pass
+        self.conn = coreLmi.CoreLMIConnection()
 
     def build_query_corelmi(self, cols: list, constraints: list[dict] = []) -> dict:
         query: dict = {"metrics": [], "constraints": constraints}
