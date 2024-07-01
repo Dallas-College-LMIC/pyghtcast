@@ -6,9 +6,9 @@ import requests
 import pandas as pd
 
 try:
-    from permissions import DEFAULT
+    from .permissions import DEFAULT
 except ValueError:  # need this for testing
-    from permissions import DEFAULT
+    from .permissions import DEFAULT
 
 
 class Token:
