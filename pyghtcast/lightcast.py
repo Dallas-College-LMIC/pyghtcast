@@ -4,8 +4,8 @@ import pandas as pd
 class Lightcast:
     conn: coreLmi.CoreLMIConnection = None
 
-    def __init__(self):
-        self.conn = coreLmi.CoreLMIConnection()
+    def __init__(self, username: str, password: str):
+        self.conn = coreLmi.CoreLMIConnection(username, password)
 
     def build_query_corelmi(self, cols: list, constraints: list[dict] = []) -> dict:
         query: dict = {"metrics": [], "constraints": constraints}

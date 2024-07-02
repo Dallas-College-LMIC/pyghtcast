@@ -91,10 +91,10 @@ class CoreLMIConnection(EmsiBaseConnection):
         token (str): token received back from the OAuth server
     """
 
-    def __init__(self) -> None:
+    def __init__(self, username, password) -> None:
         """Summary"""
 
-        super().__init__()
+        super().__init__(username, password)
         self.base_url = "https://agnitio.emsicloud.com/"
         self.scope = "agnitio"
 

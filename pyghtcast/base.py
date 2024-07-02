@@ -30,11 +30,11 @@ class EmsiBaseConnection(object):
         scope (str): the scope for requesting an auth token from the API
     """
 
-    def __init__(self) -> None:
+    def __init__(self, username, password) -> None:
         """
         Parses the username and password from the permissions
         """
-        self.username, self.password = DEFAULT["username"], DEFAULT["password"]
+        self.username, self.password = username, password
 
     def get_new_token(self) -> None:
         """Creates a new access token for connecting to the API
