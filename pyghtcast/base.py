@@ -5,12 +5,6 @@ from datetime import datetime, timedelta
 import requests
 import pandas as pd
 
-try:
-    from .permissions import DEFAULT
-except ValueError:  # need this for testing
-    from .permissions import DEFAULT
-
-
 class Token:
     def __init__(self, token):
         self.token = token
