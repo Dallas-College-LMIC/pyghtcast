@@ -26,7 +26,7 @@
             inherit inputs pkgs;
             modules = [{
               # https://devenv.sh/reference/options/
-
+              dotenv.enable = true;
               packages = (with pkgs; [ ruff ])
                 ++ (with pkgs.python311Packages; [
                   mypy
@@ -36,7 +36,6 @@
                   pylsp-mypy
                   pandas-stubs
                 ]);
-
               languages.python = {
                 enable = true;
                 poetry.enable = true;

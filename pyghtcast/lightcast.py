@@ -25,4 +25,4 @@ class Skills:
     conn: openSkills.SkillsClassificationConnection = None
 
     def __init__(self, username: str, password: str):
-        self.conn = openSkills.SkillsClassificationConnection(username, password)(username, password)
+        self.conn = openSkills.SkillsClassificationConnection(username, password)
