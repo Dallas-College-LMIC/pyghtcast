@@ -24,9 +24,11 @@
         in {
           default = devenv.lib.mkShell {
             inherit inputs pkgs;
+
             modules = [{
               # https://devenv.sh/reference/options/
               dotenv.enable = true;
+              # env = nixpkgs.lib.importJSON ./env.json;
               packages = (with pkgs; [ ruff ])
                 ++ (with pkgs.python311Packages; [
                   mypy
