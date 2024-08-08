@@ -27,8 +27,7 @@
 
             modules = [{
               # https://devenv.sh/reference/options/
-              dotenv.enable = true;
-              # env = nixpkgs.lib.importJSON ./env.json;
+              env = nixpkgs.lib.importJSON ./env.json;
               packages = (with pkgs; [ ruff ])
                 ++ (with pkgs.python311Packages; [
                   mypy

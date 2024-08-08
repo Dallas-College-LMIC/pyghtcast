@@ -70,8 +70,8 @@ class SkillsClassificationConnection(EmsiBaseConnection):
         """Summary
 
         Args:
-            version (str, optional): Description
-            q (str, optional): Description
+            version (str, optional): version of dataset (default: "latest")
+            q (str, optional): A query string of skill names to search for.
             typeIds (str, optional): Description
             fields (str, optional): Description
 
