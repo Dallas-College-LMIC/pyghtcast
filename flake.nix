@@ -24,9 +24,10 @@
         in {
           default = devenv.lib.mkShell {
             inherit inputs pkgs;
+
             modules = [{
               # https://devenv.sh/reference/options/
-
+              env = nixpkgs.lib.importJSON ./env.json;
               packages = (with pkgs; [ ruff ])
                 ++ (with pkgs.python311Packages; [
                   mypy
@@ -36,7 +37,6 @@
                   pylsp-mypy
                   pandas-stubs
                 ]);
-
               languages.python = {
                 enable = true;
                 poetry.enable = true;
