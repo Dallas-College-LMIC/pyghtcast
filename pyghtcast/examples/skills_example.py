@@ -1,5 +1,6 @@
-from pyghtcast import lightcast
 import os
+
+from pyghtcast import lightcast
 
 user = os.environ.get("LCAPI_USER", "")
 pwd = os.environ.get("LCAPI_PASS", "")

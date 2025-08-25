@@ -17,6 +17,7 @@ DFW_13_FIPS = {
     "wise": 48497,
 }
 
+
 def industry_pull():
     cols = [
         "Jobs.2013",
