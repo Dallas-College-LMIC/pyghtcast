@@ -146,7 +146,7 @@
 
               # Development tools
               pkgs.ruff  # Latest ruff with Python 3.13 support
-              
+
               # System libraries for numpy/pandas
               pkgs.stdenv.cc.cc.lib
               pkgs.zlib
@@ -179,7 +179,7 @@
               # Set up environment
               unset PYTHONPATH
               export PYTHONPATH="$PWD:$PYTHONPATH"
-              
+
               # Set LD_LIBRARY_PATH for numpy and other C extensions
               export LD_LIBRARY_PATH="${pkgs.stdenv.cc.cc.lib}/lib:${pkgs.zlib}/lib:$LD_LIBRARY_PATH"
 
