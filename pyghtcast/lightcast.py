@@ -1,6 +1,7 @@
-from . import coreLmi
-from . import openSkills
 import pandas as pd
+
+from . import coreLmi, openSkills
+
 
 class Lightcast:
     conn: coreLmi.CoreLMIConnection = None
@@ -20,6 +21,7 @@ class Lightcast:
 
     def query_corelmi(self, dataset: str, query: dict, datarun: str = "2025.3") -> pd.DataFrame:
         return self.conn.post_retrieve_df(dataset, query, datarun)
+
 
 class Skills:
     conn: openSkills.SkillsClassificationConnection = None
