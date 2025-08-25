@@ -60,3 +60,4 @@ result-*
 
 # Project specific
 pyghtcast/__pycache__/
+.pre-commit-config.yaml
