@@ -18,7 +18,7 @@ class Lightcast:
 
         return query
 
-    def query_corelmi(self, dataset: str, query: dict, datarun: str = "2024.2") -> pd.DataFrame:
+    def query_corelmi(self, dataset: str, query: dict, datarun: str = "2025.3") -> pd.DataFrame:
         return self.conn.post_retrieve_df(dataset, query, datarun)
 
 class Skills:
