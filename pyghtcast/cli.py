@@ -28,95 +28,118 @@ def get_connection() -> CoreLMIConnection:
 
 @click.group()
 @click.version_option(version="0.1.0")
-def cli():
+def cli() -> None:
     """pyghtcast - Command-line interface for Lightcast API discovery and querying."""
     pass
 
 
 @cli.group()
-def discover():
+def discover() -> None:
     """Discover available datasets, dimensions, and hierarchies."""
     pass
 
 
 @discover.command(name="datasets")
 @click.option("--json", "output_json", is_flag=True, help="Output as JSON")
-def discover_datasets(output_json):
+@click.option("--descriptions", "-d", is_flag=True, help="Include full dataset descriptions")
+def discover_datasets(output_json: bool, descriptions: bool) -> None:
     """List all available datasets and their versions."""
     conn = get_connection()
 
     try:
-        meta = conn.get_meta()
+        # Use the definitions endpoint for richer data
+        definitions = conn.get_meta_definitions()
 
         if output_json:
-            click.echo(json.dumps(meta, indent=2))
+            click.echo(json.dumps(definitions, indent=2))
         else:
             click.echo("\n=== Available Datasets ===\n")
 
-            # Handle list response (API returns a list of dataset names)
-            if isinstance(meta, list):
-                for dataset_name in meta:
-                    click.echo(f"{click.style(dataset_name, bold=True, fg='cyan')}")
-                    click.echo(
-                        f"   Use 'pyghtcast discover dimensions --dataset {dataset_name} --datarun <version>' for more info"
-                    )
-                    click.echo()
+            # Handle the response based on its structure
+            if isinstance(definitions, dict) and "datasets" in definitions:
+                datasets = definitions["datasets"]
 
-                if len(meta) == 0:
-                    click.echo("No datasets available. Please check your API credentials.")
+                if isinstance(datasets, list):
+                    for dataset_info in datasets:
+                        if isinstance(dataset_info, dict) and "name" in dataset_info:
+                            dataset_name = dataset_info["name"]
 
-            # Handle dict response (if API returns structured data)
-            elif isinstance(meta, dict):
-                if "datasets" in meta:
-                    # Check if datasets is a list (new format)
-                    if isinstance(meta["datasets"], list):
-                        for dataset_info in meta["datasets"]:
-                            if isinstance(dataset_info, dict) and "name" in dataset_info:
-                                dataset_name = dataset_info["name"]
-                                click.echo(f"{click.style(dataset_name, bold=True, fg='cyan')}")
-
-                                if "title" in dataset_info:
-                                    click.echo(f"   Title: {dataset_info['title']}")
-                                if "description" in dataset_info:
-                                    click.echo(f"   Description: {dataset_info['description']}")
-                                if "versions" in dataset_info:
-                                    versions = dataset_info["versions"]
-                                    if isinstance(versions, list):
-                                        click.echo(f"   Available versions: {', '.join(versions[:5])}")
-                                        if len(versions) > 5:
-                                            click.echo(f"   ... and {len(versions) - 5} more")
-                                click.echo()
-                    # Check if datasets is a dict (old format)
-                    elif isinstance(meta["datasets"], dict):
-                        for dataset_name, dataset_info in meta["datasets"].items():
+                            # Dataset name
                             click.echo(f"{click.style(dataset_name, bold=True, fg='cyan')}")
 
-                            if isinstance(dataset_info, dict):
-                                if "title" in dataset_info:
-                                    click.echo(f"   Title: {dataset_info['title']}")
-                                if "description" in dataset_info:
-                                    click.echo(f"   Description: {dataset_info['description']}")
-                                if "versions" in dataset_info:
-                                    versions = dataset_info["versions"]
-                                    if isinstance(versions, list):
-                                        click.echo(f"   Available versions: {', '.join(versions[:5])}")
-                                        if len(versions) > 5:
-                                            click.echo(f"   ... and {len(versions) - 5} more")
+                            # Title (if available)
+                            if "title" in dataset_info:
+                                click.echo(f"  {dataset_info['title']}")
+
+                            # Versions
+                            if "versions" in dataset_info:
+                                versions = dataset_info["versions"]
+                                if isinstance(versions, list):
+                                    version_str = ", ".join(versions[:5])
+                                    if len(versions) > 5:
+                                        version_str += f" ... (+{len(versions) - 5} more)"
+                                    click.echo(f"  Versions: {version_str}")
+
+                            # Description (if flag is set)
+                            if descriptions and "description" in dataset_info:
+                                desc = dataset_info["description"]
+                                # Extract just the first paragraph for a summary
+                                lines = desc.split("\n")
+                                summary = ""
+                                for line in lines:
+                                    if line.strip() and not line.startswith("#"):
+                                        summary = line.strip()
+                                        break
+                                if summary:
+                                    # Truncate if too long
+                                    if len(summary) > 200:
+                                        summary = summary[:197] + "..."
+                                    click.echo(f"  Description: {summary}")
+
                             click.echo()
-                else:
-                    # Raw dict without 'datasets' key
-                    for key, value in meta.items():
-                        click.echo(f"{click.style(key, bold=True, fg='cyan')}")
-                        if isinstance(value, dict):
-                            for subkey, subvalue in list(value.items())[:3]:
-                                click.echo(f"   {subkey}: {subvalue}")
-                        else:
-                            click.echo(f"   {value}")
+                elif isinstance(datasets, dict):
+                    # Handle dict format
+                    for dataset_name, dataset_info in datasets.items():
+                        click.echo(f"{click.style(dataset_name, bold=True, fg='cyan')}")
+
+                        if isinstance(dataset_info, dict):
+                            # Title (if available)
+                            if "title" in dataset_info:
+                                click.echo(f"  {dataset_info['title']}")
+
+                            # Versions
+                            if "versions" in dataset_info:
+                                versions = dataset_info["versions"]
+                                if isinstance(versions, list):
+                                    version_str = ", ".join(versions[:5])
+                                    if len(versions) > 5:
+                                        version_str += f" ... (+{len(versions) - 5} more)"
+                                    click.echo(f"  Versions: {version_str}")
+
+                            # Description (if flag is set)
+                            if descriptions and "description" in dataset_info:
+                                desc = dataset_info["description"]
+                                # Extract just the first paragraph for a summary
+                                lines = desc.split("\n")
+                                summary = ""
+                                for line in lines:
+                                    if line.strip() and not line.startswith("#"):
+                                        summary = line.strip()
+                                        break
+                                if summary:
+                                    # Truncate if too long
+                                    if len(summary) > 200:
+                                        summary = summary[:197] + "..."
+                                    click.echo(f"  Description: {summary}")
+
                         click.echo()
+                else:
+                    # Unknown format, show raw data
+                    click.echo(json.dumps(definitions, indent=2))
             else:
                 # Unknown structure, show raw
                 click.echo("Raw API response:")
-                click.echo(json.dumps(meta, indent=2))
+                click.echo(json.dumps(definitions, indent=2))
 
     except Exception as e:
         click.echo(f"Error fetching datasets: {e}", err=True)
@@ -276,34 +299,8 @@ def discover_hierarchy(
         sys.exit(1)
 
 
-@discover.command(name="definitions")
-@click.option("--json", "output_json", is_flag=True, help="Output as JSON")
-def discover_definitions(output_json: bool) -> None:
-    """Get dataset definitions and metadata."""
-    conn = get_connection()
-
-    try:
-        definitions = conn.get_meta_definitions()
-
-        if output_json:
-            click.echo(json.dumps(definitions, indent=2))
-        else:
-            click.echo("\n=== Dataset Definitions ===\n")
-
-            if isinstance(definitions, dict):
-                for key, value in definitions.items():
-                    click.echo(f"{click.style(key, bold=True)}: {value}")
-                    click.echo()
-            else:
-                click.echo(json.dumps(definitions, indent=2))
-
-    except Exception as e:
-        click.echo(f"Error fetching definitions: {e}", err=True)
-        sys.exit(1)
-
-
 @cli.group()
-def query():
+def query() -> None:
     """Build and execute queries."""
     pass
 
