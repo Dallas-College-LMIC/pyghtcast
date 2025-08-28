@@ -107,7 +107,7 @@ class CoreLMIConnection(EmsiBaseConnection):
 
         return response.json()
 
-    def get_meta_dataset(self, dataset: str, datarun: str) -> list:
+    def get_meta_dataset(self, dataset: str, datarun: str) -> dict:
         """
         Available versions of a specific dataset can be retrieved by adding dataset/<name> to the path
 
@@ -116,7 +116,7 @@ class CoreLMIConnection(EmsiBaseConnection):
             datarun (str): the data version to use when querying the dataset (e.g. `2020.3`)
 
         Returns:
-            list: list of dataset versions available
+            dict: dataset metadata including dimensions and metrics
         """
         response = self.download_data(f"meta/dataset/{dataset}/{datarun}")
 

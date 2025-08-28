@@ -4,6 +4,7 @@
 import json
 import os
 import sys
+import textwrap
 
 import click
 
@@ -83,18 +84,34 @@ def discover_datasets(output_json: bool, descriptions: bool) -> None:
                             # Description (if flag is set)
                             if descriptions and "description" in dataset_info:
                                 desc = dataset_info["description"]
-                                # Extract just the first paragraph for a summary
+                                # Extract the complete description paragraph(s) from the first section
                                 lines = desc.split("\n")
-                                summary = ""
+                                description_lines = []
+                                in_description = False
+
                                 for line in lines:
-                                    if line.strip() and not line.startswith("#"):
-                                        summary = line.strip()
+                                    # Start capturing after "# Description" header
+                                    if line.strip().startswith("# Description"):
+                                        in_description = True
+                                        continue
+                                    # Stop at the next section header
+                                    elif line.strip().startswith("#") and in_description:
                                         break
-                                if summary:
-                                    # Truncate if too long
-                                    if len(summary) > 200:
-                                        summary = summary[:197] + "..."
-                                    click.echo(f"  Description: {summary}")
+                                    # Capture non-empty lines in the description section
+                                    elif in_description and line.strip():
+                                        description_lines.append(line.strip())
+
+                                # Join the description lines into a paragraph
+                                if description_lines:
+                                    summary = " ".join(description_lines)
+                                    # Wrap long descriptions for better terminal display
+                                    wrapped = textwrap.fill(
+                                        summary,
+                                        width=100,
+                                        initial_indent="  Description: ",
+                                        subsequent_indent="              ",
+                                    )
+                                    click.echo(wrapped)
 
                             click.echo()
                 elif isinstance(datasets, dict):
@@ -119,18 +136,34 @@ def discover_datasets(output_json: bool, descriptions: bool) -> None:
                             # Description (if flag is set)
                             if descriptions and "description" in dataset_info:
                                 desc = dataset_info["description"]
-                                # Extract just the first paragraph for a summary
+                                # Extract the complete description paragraph(s) from the first section
                                 lines = desc.split("\n")
-                                summary = ""
+                                description_lines = []
+                                in_description = False
+
                                 for line in lines:
-                                    if line.strip() and not line.startswith("#"):
-                                        summary = line.strip()
+                                    # Start capturing after "# Description" header
+                                    if line.strip().startswith("# Description"):
+                                        in_description = True
+                                        continue
+                                    # Stop at the next section header
+                                    elif line.strip().startswith("#") and in_description:
                                         break
-                                if summary:
-                                    # Truncate if too long
-                                    if len(summary) > 200:
-                                        summary = summary[:197] + "..."
-                                    click.echo(f"  Description: {summary}")
+                                    # Capture non-empty lines in the description section
+                                    elif in_description and line.strip():
+                                        description_lines.append(line.strip())
+
+                                # Join the description lines into a paragraph
+                                if description_lines:
+                                    summary = " ".join(description_lines)
+                                    # Wrap long descriptions for better terminal display
+                                    wrapped = textwrap.fill(
+                                        summary,
+                                        width=100,
+                                        initial_indent="  Description: ",
+                                        subsequent_indent="              ",
+                                    )
+                                    click.echo(wrapped)
 
                         click.echo()
                 else:
@@ -162,62 +195,58 @@ def discover_dimensions(dataset: str, datarun: str, output_json: bool) -> None:
         else:
             click.echo(f"\n=== Dimensions for {click.style(dataset, bold=True, fg='cyan')} ({datarun}) ===\n")
 
-            if isinstance(dataset_info, dict):
-                # Show dataset attributes if available
-                if "attributes" in dataset_info and isinstance(dataset_info["attributes"], dict):
-                    attrs = dataset_info["attributes"]
-                    if "displayName" in attrs:
-                        click.echo(f"Dataset: {attrs['displayName']}")
-                    if "currentYear" in attrs:
-                        click.echo(f"Current Year: {attrs['currentYear']}")
-                    click.echo()
+            # Show dataset attributes if available
+            if "attributes" in dataset_info and isinstance(dataset_info["attributes"], dict):
+                attrs = dataset_info["attributes"]
+                if "displayName" in attrs:
+                    click.echo(f"Dataset: {attrs['displayName']}")
+                if "currentYear" in attrs:
+                    click.echo(f"Current Year: {attrs['currentYear']}")
+                click.echo()
 
-                # Extract dimensions (list format)
-                if "dimensions" in dataset_info and isinstance(dataset_info["dimensions"], list):
-                    click.echo(f"{click.style('Dimensions:', bold=True)}")
-                    for dim in dataset_info["dimensions"]:
-                        if isinstance(dim, dict) and "name" in dim:
-                            dim_name = dim["name"]
-                            click.echo(f"  - {dim_name}")
-                            if "levelsStored" in dim:
-                                click.echo(f"    Levels: {dim['levelsStored']}")
-                    click.echo()
-
-                # Extract dimensions (dict format - old)
-                elif "dimensions" in dataset_info and isinstance(dataset_info["dimensions"], dict):
-                    click.echo(f"{click.style('Dimensions:', bold=True)}")
-                    for dim_name, dim_info in dataset_info["dimensions"].items():
+            # Extract dimensions (list format)
+            if "dimensions" in dataset_info and isinstance(dataset_info["dimensions"], list):
+                click.echo(f"{click.style('Dimensions:', bold=True)}")
+                for dim in dataset_info["dimensions"]:
+                    if isinstance(dim, dict) and "name" in dim:
+                        dim_name = dim["name"]
                         click.echo(f"  - {dim_name}")
-                        if isinstance(dim_info, dict):
-                            if "title" in dim_info:
-                                click.echo(f"    Title: {dim_info['title']}")
-                            if "description" in dim_info:
-                                click.echo(f"    Description: {dim_info['description']}")
-                            if "hierarchyLevels" in dim_info:
-                                levels = dim_info["hierarchyLevels"]
-                                click.echo(f"    Hierarchy levels: {levels}")
-                    click.echo()
+                        if "levelsStored" in dim:
+                            click.echo(f"    Levels: {dim['levelsStored']}")
+                click.echo()
 
-                # Extract metrics (list format)
-                if "metrics" in dataset_info and isinstance(dataset_info["metrics"], list):
-                    click.echo(f"{click.style('Available Metrics:', bold=True)}")
-                    for metric in dataset_info["metrics"]:
-                        if isinstance(metric, dict) and "name" in metric:
-                            click.echo(f"  - {metric['name']}")
-                    click.echo()
+            # Extract dimensions (dict format - old)
+            elif "dimensions" in dataset_info and isinstance(dataset_info["dimensions"], dict):
+                click.echo(f"{click.style('Dimensions:', bold=True)}")
+                for dim_name, dim_info in dataset_info["dimensions"].items():
+                    click.echo(f"  - {dim_name}")
+                    if isinstance(dim_info, dict):
+                        if "title" in dim_info:
+                            click.echo(f"    Title: {dim_info['title']}")
+                        if "description" in dim_info:
+                            click.echo(f"    Description: {dim_info['description']}")
+                        if "hierarchyLevels" in dim_info:
+                            levels = dim_info["hierarchyLevels"]
+                            click.echo(f"    Hierarchy levels: {levels}")
+                click.echo()
 
-                # Extract metrics (dict format - old)
-                elif "metrics" in dataset_info and isinstance(dataset_info["metrics"], dict):
-                    click.echo(f"{click.style('Available Metrics:', bold=True)}")
-                    for metric_name, metric_info in dataset_info["metrics"].items():
-                        if isinstance(metric_info, dict) and "title" in metric_info:
-                            click.echo(f"  - {metric_name}: {metric_info['title']}")
-                        else:
-                            click.echo(f"  - {metric_name}")
-                    click.echo()
-            else:
-                # Different structure, just show the raw data
-                click.echo(json.dumps(dataset_info, indent=2))
+            # Extract metrics (list format)
+            if "metrics" in dataset_info and isinstance(dataset_info["metrics"], list):
+                click.echo(f"{click.style('Available Metrics:', bold=True)}")
+                for metric in dataset_info["metrics"]:
+                    if isinstance(metric, dict) and "name" in metric:
+                        click.echo(f"  - {metric['name']}")
+                click.echo()
+
+            # Extract metrics (dict format - old)
+            elif "metrics" in dataset_info and isinstance(dataset_info["metrics"], dict):
+                click.echo(f"{click.style('Available Metrics:', bold=True)}")
+                for metric_name, metric_info in dataset_info["metrics"].items():
+                    if isinstance(metric_info, dict) and "title" in metric_info:
+                        click.echo(f"  - {metric_name}: {metric_info['title']}")
+                    else:
+                        click.echo(f"  - {metric_name}")
+                click.echo()
 
     except Exception as e:
         click.echo(f"Error fetching dimensions: {e}", err=True)
