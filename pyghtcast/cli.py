@@ -53,24 +53,69 @@ def discover_datasets(output_json):
         else:
             click.echo("\n=== Available Datasets ===\n")
 
-            if isinstance(meta, dict) and "datasets" in meta:
-                for dataset_name, dataset_info in meta["datasets"].items():
-                    click.echo(f"📊 {click.style(dataset_name, bold=True, fg='cyan')}")
-
-                    if isinstance(dataset_info, dict):
-                        if "title" in dataset_info:
-                            click.echo(f"   Title: {dataset_info['title']}")
-                        if "description" in dataset_info:
-                            click.echo(f"   Description: {dataset_info['description']}")
-                        if "versions" in dataset_info:
-                            versions = dataset_info["versions"]
-                            if isinstance(versions, list):
-                                click.echo(f"   Available versions: {', '.join(versions[:5])}")
-                                if len(versions) > 5:
-                                    click.echo(f"   ... and {len(versions) - 5} more")
+            # Handle list response (API returns a list of dataset names)
+            if isinstance(meta, list):
+                for dataset_name in meta:
+                    click.echo(f"{click.style(dataset_name, bold=True, fg='cyan')}")
+                    click.echo(
+                        f"   Use 'pyghtcast discover dimensions --dataset {dataset_name} --datarun <version>' for more info"
+                    )
                     click.echo()
+
+                if len(meta) == 0:
+                    click.echo("No datasets available. Please check your API credentials.")
+
+            # Handle dict response (if API returns structured data)
+            elif isinstance(meta, dict):
+                if "datasets" in meta:
+                    # Check if datasets is a list (new format)
+                    if isinstance(meta["datasets"], list):
+                        for dataset_info in meta["datasets"]:
+                            if isinstance(dataset_info, dict) and "name" in dataset_info:
+                                dataset_name = dataset_info["name"]
+                                click.echo(f"{click.style(dataset_name, bold=True, fg='cyan')}")
+
+                                if "title" in dataset_info:
+                                    click.echo(f"   Title: {dataset_info['title']}")
+                                if "description" in dataset_info:
+                                    click.echo(f"   Description: {dataset_info['description']}")
+                                if "versions" in dataset_info:
+                                    versions = dataset_info["versions"]
+                                    if isinstance(versions, list):
+                                        click.echo(f"   Available versions: {', '.join(versions[:5])}")
+                                        if len(versions) > 5:
+                                            click.echo(f"   ... and {len(versions) - 5} more")
+                                click.echo()
+                    # Check if datasets is a dict (old format)
+                    elif isinstance(meta["datasets"], dict):
+                        for dataset_name, dataset_info in meta["datasets"].items():
+                            click.echo(f"{click.style(dataset_name, bold=True, fg='cyan')}")
+
+                            if isinstance(dataset_info, dict):
+                                if "title" in dataset_info:
+                                    click.echo(f"   Title: {dataset_info['title']}")
+                                if "description" in dataset_info:
+                                    click.echo(f"   Description: {dataset_info['description']}")
+                                if "versions" in dataset_info:
+                                    versions = dataset_info["versions"]
+                                    if isinstance(versions, list):
+                                        click.echo(f"   Available versions: {', '.join(versions[:5])}")
+                                        if len(versions) > 5:
+                                            click.echo(f"   ... and {len(versions) - 5} more")
+                            click.echo()
+                else:
+                    # Raw dict without 'datasets' key
+                    for key, value in meta.items():
+                        click.echo(f"{click.style(key, bold=True, fg='cyan')}")
+                        if isinstance(value, dict):
+                            for subkey, subvalue in list(value.items())[:3]:
+                                click.echo(f"   {subkey}: {subvalue}")
+                        else:
+                            click.echo(f"   {value}")
+                        click.echo()
             else:
-                # Fallback for different meta structure
+                # Unknown structure, show raw
+                click.echo("Raw API response:")
                 click.echo(json.dumps(meta, indent=2))
 
     except Exception as e:
@@ -95,28 +140,57 @@ def discover_dimensions(dataset: str, datarun: str, output_json: bool) -> None:
             click.echo(f"\n=== Dimensions for {click.style(dataset, bold=True, fg='cyan')} ({datarun}) ===\n")
 
             if isinstance(dataset_info, dict):
-                # Extract dimensions
-                if "dimensions" in dataset_info:
+                # Show dataset attributes if available
+                if "attributes" in dataset_info and isinstance(dataset_info["attributes"], dict):
+                    attrs = dataset_info["attributes"]
+                    if "displayName" in attrs:
+                        click.echo(f"Dataset: {attrs['displayName']}")
+                    if "currentYear" in attrs:
+                        click.echo(f"Current Year: {attrs['currentYear']}")
+                    click.echo()
+
+                # Extract dimensions (list format)
+                if "dimensions" in dataset_info and isinstance(dataset_info["dimensions"], list):
+                    click.echo(f"{click.style('Dimensions:', bold=True)}")
+                    for dim in dataset_info["dimensions"]:
+                        if isinstance(dim, dict) and "name" in dim:
+                            dim_name = dim["name"]
+                            click.echo(f"  - {dim_name}")
+                            if "levelsStored" in dim:
+                                click.echo(f"    Levels: {dim['levelsStored']}")
+                    click.echo()
+
+                # Extract dimensions (dict format - old)
+                elif "dimensions" in dataset_info and isinstance(dataset_info["dimensions"], dict):
+                    click.echo(f"{click.style('Dimensions:', bold=True)}")
                     for dim_name, dim_info in dataset_info["dimensions"].items():
-                        click.echo(f"📐 {click.style(dim_name, bold=True)}")
+                        click.echo(f"  - {dim_name}")
                         if isinstance(dim_info, dict):
                             if "title" in dim_info:
-                                click.echo(f"   Title: {dim_info['title']}")
+                                click.echo(f"    Title: {dim_info['title']}")
                             if "description" in dim_info:
-                                click.echo(f"   Description: {dim_info['description']}")
+                                click.echo(f"    Description: {dim_info['description']}")
                             if "hierarchyLevels" in dim_info:
                                 levels = dim_info["hierarchyLevels"]
-                                click.echo(f"   Hierarchy levels: {levels}")
-                        click.echo()
+                                click.echo(f"    Hierarchy levels: {levels}")
+                    click.echo()
 
-                # Extract metrics
-                if "metrics" in dataset_info:
+                # Extract metrics (list format)
+                if "metrics" in dataset_info and isinstance(dataset_info["metrics"], list):
+                    click.echo(f"{click.style('Available Metrics:', bold=True)}")
+                    for metric in dataset_info["metrics"]:
+                        if isinstance(metric, dict) and "name" in metric:
+                            click.echo(f"  - {metric['name']}")
+                    click.echo()
+
+                # Extract metrics (dict format - old)
+                elif "metrics" in dataset_info and isinstance(dataset_info["metrics"], dict):
                     click.echo(f"{click.style('Available Metrics:', bold=True)}")
                     for metric_name, metric_info in dataset_info["metrics"].items():
                         if isinstance(metric_info, dict) and "title" in metric_info:
-                            click.echo(f"  • {metric_name}: {metric_info['title']}")
+                            click.echo(f"  - {metric_name}: {metric_info['title']}")
                         else:
-                            click.echo(f"  • {metric_name}")
+                            click.echo(f"  - {metric_name}")
                     click.echo()
             else:
                 # Different structure, just show the raw data
@@ -173,16 +247,24 @@ def discover_hierarchy(
                             break
 
                         if isinstance(item, dict):
-                            level = item.get("level", 0)
+                            # Try different keys for level
+                            if "level" in item:
+                                level = item.get("level", 0)
+                            elif "level_name" in item:
+                                level = int(item.get("level_name", "0")) - 1
+                            else:
+                                level = 0
+
                             indent = "  " * level
                             name = item.get("name", "Unknown")
-                            code = item.get("id", "")
+                            # Try different keys for ID
+                            code = item.get("display_id") or item.get("child") or item.get("id", "")
 
                             # Format output based on level
                             if level == 0:
-                                click.echo(f"{indent}📁 {click.style(name, bold=True)} [{code}]")
+                                click.echo(f"{indent}{click.style(name, bold=True)} [{code}]")
                             else:
-                                click.echo(f"{indent}├─ {name} [{code}]")
+                                click.echo(f"{indent}  {name} [{code}]")
 
                             shown += 1
                     click.echo()
@@ -231,11 +313,11 @@ def query():
 @click.option("--datarun", default="2025.3", help="Data version (default: 2025.3)")
 def query_build(dataset: str, datarun: str) -> None:
     """Interactive query builder (coming soon)."""
-    click.echo(f"\n🔨 Interactive query builder for {dataset} ({datarun})")
+    click.echo(f"\nInteractive query builder for {dataset} ({datarun})")
     click.echo("This feature is coming soon!")
     click.echo("\nFor now, you can use the discover commands to explore available data:")
-    click.echo("  • pyghtcast discover dimensions --dataset <dataset> --datarun <version>")
-    click.echo("  • pyghtcast discover hierarchy --dataset <dataset> --dimension <dim> --datarun <version>")
+    click.echo("  - pyghtcast discover dimensions --dataset <dataset> --datarun <version>")
+    click.echo("  - pyghtcast discover hierarchy --dataset <dataset> --dimension <dim> --datarun <version>")
 
 
 @query.command(name="example")
