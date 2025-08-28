@@ -4,12 +4,14 @@ from . import coreLmi, openSkills
 
 
 class Lightcast:
-    conn: coreLmi.CoreLMIConnection = None
+    conn: coreLmi.CoreLMIConnection | None = None
 
     def __init__(self, username: str, password: str):
         self.conn = coreLmi.CoreLMIConnection(username, password)
 
-    def build_query_corelmi(self, cols: list, constraints: list[dict] = []) -> dict:
+    def build_query_corelmi(self, cols: list, constraints: list[dict] | None = None) -> dict:
+        if constraints is None:
+            constraints = []
         query: dict = {"metrics": [], "constraints": constraints}
 
         # take as list of column names just to make the syntax easier
@@ -24,7 +26,7 @@ class Lightcast:
 
 
 class Skills:
-    conn: openSkills.SkillsClassificationConnection = None
+    conn: openSkills.SkillsClassificationConnection | None = None
 
     def __init__(self, username: str, password: str):
         self.conn = openSkills.SkillsClassificationConnection(username, password)

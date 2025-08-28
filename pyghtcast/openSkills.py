@@ -14,7 +14,7 @@ class SkillsClassificationConnection(EmsiBaseConnection):
         token (TYPE): Description
     """
 
-    def __init__(self, username, password) -> None:
+    def __init__(self, username: str, password: str) -> None:
         """Summary"""
         super().__init__(username, password)
         self.base_url = "https://emsiservices.com/skills/"
@@ -24,7 +24,7 @@ class SkillsClassificationConnection(EmsiBaseConnection):
 
         self.name = "Skills"
 
-    def get_meta(self):
+    def get_meta(self) -> list[str]:
         return self.get_versions()
 
     def get_versions(self) -> list:
@@ -160,7 +160,7 @@ class SkillsClassificationConnection(EmsiBaseConnection):
         self,
         skill_ids: list,
         limit=10,
-        fields=["id", "name", "type", "infoUrl"],
+        fields=None,
         version: str = "latest",
     ):
         """Summary
@@ -174,6 +174,8 @@ class SkillsClassificationConnection(EmsiBaseConnection):
         Returns:
             TYPE: Description
         """
+        if fields is None:
+            fields = ["id", "name", "type", "infoUrl"]
         payload = {
             "ids": skill_ids,
             "limit": limit,

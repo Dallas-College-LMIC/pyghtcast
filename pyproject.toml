@@ -12,7 +12,11 @@ requires-python = ">=3.13"
 dependencies = [
     "pandas>=2.2.2",
     "requests>=2.32.3",
+    "click>=8.1.0",
 ]
+
+[project.scripts]
+pyghtcast = "pyghtcast.cli:cli"
 
 [project.optional-dependencies]
 dev = [
