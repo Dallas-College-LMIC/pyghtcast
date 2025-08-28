@@ -2,83 +2,104 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Overview
-
-Pyghtcast is a Python wrapper for the Lightcast API, providing simplified access to labor market data and skills classification. It borrows heavily from EmsiApiPy.
-
 ## Development Commands
 
-### Package Management
-- **Install dependencies**: `poetry install`
-- **Add dependency**: `poetry add <package>`
-- **Update dependencies**: `poetry update`
-
 ### Running Code
-- **Run example**: `python -m pyghtcast.examples.skills_example`
-- **Python REPL with package**: `poetry run python`
+```bash
+# Run any Python file with UV
+uv run python pyghtcast/examples.py
 
-### Environment Setup
-- **Required environment variables**:
-  - `LCAPI_USER`: Lightcast API username
-  - `LCAPI_PASS`: Lightcast API password
+# Run with additional packages
+uv run --with jupyter python script.py
+```
 
-## Architecture
+### Code Quality (Run After Changes)
+```bash
+# Lint and auto-fix issues
+uv run --with ruff ruff check . --fix
 
-### Core Components
+# Format code
+uv run --with ruff ruff format .
 
-1. **Base Connection Layer** (`pyghtcast/base.py`):
-   - `EmsiBaseConnection`: Base class for all API connections
-   - `Token`: Token management with automatic expiration checking
-   - Handles authentication, GET/POST requests, and error responses
-   - Auto-refreshes tokens when expired
+# Type checking
+uv run --with mypy mypy pyghtcast
 
-2. **Core LMI API** (`pyghtcast/coreLmi.py`):
-   - `CoreLMIConnection`: Access to Lightcast's Core Labor Market Intelligence datasets
-   - `Limiter`: Smart rate limiting (300 requests per 5-minute window)
-   - Endpoints: meta data, dataset definitions, dimension hierarchies, data retrieval
-   - Returns pandas DataFrames for easy manipulation
+# All checks in one command
+uv run --with ruff ruff check . && uv run --with ruff ruff format . && uv run --with mypy mypy pyghtcast
+```
 
-3. **Skills Classification API** (`pyghtcast/openSkills.py`):
-   - `SkillsClassificationConnection`: Access to skills extraction and classification
-   - Methods for skill search, extraction from text, related skills, version management
+### Testing
+```bash
+# Run all tests with coverage
+uv run --with pytest --with pytest-cov pytest
 
-4. **Main Interface** (`pyghtcast/lightcast.py`):
-   - `Lightcast`: Simplified interface for Core LMI queries
-   - `Skills`: Simplified interface for Skills Classification
-   - `build_query_corelmi()`: Helper to construct JSON queries from simple parameters
+# Run specific test
+uv run --with pytest pytest tests/unit/test_file.py::test_function
 
-### API Interaction Pattern
+# Note: Currently no tests exist - add tests in tests/unit/ or tests/integration/
+```
 
-1. Initialize connection with credentials → auto-fetches OAuth token
-2. Build query using helper methods or raw JSON
-3. Execute query against specific dataset/version
-4. Receive pandas DataFrame or JSON response
-5. Token auto-refreshes on expiration, rate limiting handled automatically
+## Architecture Overview
 
-### Key Design Decisions
+The codebase follows a layered architecture for interacting with the Lightcast API:
 
-- **Token Management**: Tokens auto-refresh after 59 minutes
-- **Rate Limiting**: Smart distribution of requests to avoid 429 errors
-- **Error Handling**: Prints full request details on failure for debugging
-- **DataFrame Returns**: Most methods return pandas DataFrames for easy data manipulation
-- **Inheritance Structure**: All connections inherit from `EmsiBaseConnection` for consistent auth/request handling
+```
+pyghtcast/
+├── base.py              # Base connection classes with authentication
+├── coreLmi.py           # Core LMI API with rate limiting (300 req/5min)
+├── openSkills.py        # Skills Classification API
+├── lightcast.py         # Public interface (Lightcast, Skills classes)
+└── examples/            # Usage examples
+```
 
-## Testing Approach
+### Key Components
 
-When implementing new features or fixing bugs:
-1. Test authentication first with valid credentials
-2. Test against real API endpoints (no mocking framework present)
-3. Verify rate limiting works correctly under load
-4. Check DataFrame outputs match expected schema
+1. **Authentication Flow**:
+   - `Token` class in `base.py` handles OAuth2 authentication
+   - Automatic token refresh before expiration
+   - Credentials from environment variables (`LCAPI_USER`, `LCAPI_PASS`)
 
-## Common API Datasets
+2. **Rate Limiting**:
+   - `Limiter` class in `coreLmi.py` manages API quotas
+   - 300 requests per 5-minute window
+   - Automatic throttling to prevent hitting limits
 
-- `emsi.us.occupation`: Occupation-level employment data
-- `emsi.us.industry`: Industry-level employment data
-- `emsi.us.occupation.education`: Occupation by education level
-- `emsi.us.occupation.demographics`: Occupation demographics
+3. **Query Building**:
+   - `build_query_corelmi()` method constructs JSON queries
+   - Supports dimensions (Area, Occupation, Industry)
+   - Returns pandas DataFrames for easy data manipulation
 
-## API Versioning
+## Code Style Requirements
 
-- Always specify `datarun` parameter (e.g., "2025.3") for Core LMI queries
-- Use "latest" for Skills Classification API unless specific version needed
+- **Python 3.13+** with modern features
+- **Line length**: 120 characters max
+- **Quotes**: Double quotes for strings (enforced by ruff)
+- **Type hints**: Add for parameters and return types
+- **Naming**:
+  - Classes: PascalCase (`CoreLMIConnection`)
+  - Functions/variables: snake_case (`get_new_token`)
+  - Files: snake_case (`coreLmi.py`)
+
+## Important Patterns
+
+### DataFrame Returns
+All query methods return pandas DataFrames:
+```python
+df = lc.query_corelmi('emsi.us.occupation', query, datarun="2025.3")
+```
+
+### Error Handling
+Print detailed debugging info on API failures:
+```python
+print("Payload:", json.dumps(payload))
+print("URL:", url)
+print("Error:", response.text)
+```
+
+### Test-Driven Development
+Follow Red-Green-Refactor when implementing new features:
+1. Write failing test first
+2. Implement to make test pass
+3. Refactor while keeping tests green
+
+Note: Test infrastructure exists but no tests are currently written. Add tests in `tests/unit/` or `tests/integration/`.
