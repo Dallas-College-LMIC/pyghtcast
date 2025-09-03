@@ -1,1 +1,1 @@
-__all__ = ["lightcast"]
+__all__ = ["lightcast", "cli"]

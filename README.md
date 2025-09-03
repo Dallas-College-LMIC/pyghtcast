@@ -12,6 +12,25 @@ pip install git+https://github.com/Dallas-College-LMIC/pyghtcast
 
 ## Quick Start
 
+### Using the CLI
+
+Pyghtcast includes a command-line interface for exploring datasets and building queries:
+
+```bash
+# Discover available datasets
+pyghtcast discover datasets
+
+# View dimensions for a dataset
+pyghtcast discover dimensions emsi.us.occupation
+
+# Show example queries
+pyghtcast query example --dataset occupation
+```
+
+See the [CLI Documentation](CLI_DOCUMENTATION.md) for complete usage instructions.
+
+### Using the Python API
+
 ```python
 from pyghtcast.lightcast import Lightcast
 
@@ -65,7 +84,7 @@ The library simplifies query construction by abstracting the JSON structure requ
 # Define columns (metrics) you want
 columns = [
     "Jobs.2023",
-    "Openings.2023", 
+    "Openings.2023",
     "Replacements.2023",
     "MeanEarnings.2023"
 ]
@@ -194,7 +213,7 @@ Explore available values for filtering:
 # Get hierarchy for a dimension (e.g., all occupation codes)
 hierarchy_df = lc.conn.get_dimension_hierarchy_df(
     dataset="emsi.us.occupation",
-    dimension="Occupation", 
+    dimension="Occupation",
     datarun="2025.3"
 )
 ```
@@ -224,7 +243,7 @@ lc = Lightcast(user, pwd)
 
 Common datasets available through the Core LMI API:
 - `emsi.us.occupation`: Occupation-level employment data
-- `emsi.us.industry`: Industry-level employment data  
+- `emsi.us.industry`: Industry-level employment data
 - `emsi.us.occupation.education`: Occupation by education level
 - `emsi.us.occupation.demographics`: Occupation demographics
 
