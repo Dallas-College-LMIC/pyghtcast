@@ -40,6 +40,139 @@ def discover() -> None:
     pass
 
 
+# --- dataset rendering helpers (normalize list/dict API formats) ---
+
+
+def _extract_description(desc: str) -> str:
+    """Pull the first '# Description' section out of a markdown-ish API description."""
+    lines_out = []
+    in_description = False
+    for line in desc.split("\n"):
+        stripped = line.strip()
+        if stripped.startswith("# Description"):
+            in_description = True
+            continue
+        if in_description and stripped.startswith("#"):
+            break
+        if in_description and stripped:
+            lines_out.append(stripped)
+    return " ".join(lines_out)
+
+
+def _print_versions(versions: object) -> None:
+    if isinstance(versions, list):
+        version_str = ", ".join(versions[:5])
+        if len(versions) > 5:
+            version_str += f" ... (+{len(versions) - 5} more)"
+        click.echo(f"  Versions: {version_str}")
+
+
+def _print_description(info: dict, show: bool) -> None:
+    if show and "description" in info:
+        summary = _extract_description(info["description"])
+        if summary:
+            click.echo(
+                textwrap.fill(
+                    summary,
+                    width=100,
+                    initial_indent="  Description: ",
+                    subsequent_indent="              ",
+                )
+            )
+
+
+def _print_dataset_entry(name: str, info: dict, descriptions: bool) -> None:
+    click.echo(f"{click.style(name, bold=True, fg='cyan')}")
+    if isinstance(info, dict):
+        if "title" in info:
+            click.echo(f"  {info['title']}")
+        if "versions" in info:
+            _print_versions(info["versions"])
+        _print_description(info, descriptions)
+    click.echo()
+
+
+def _iter_datasets(datasets: object) -> list[tuple[str, dict]]:
+    """Normalize list/dict dataset formats into (name, info) pairs."""
+    if isinstance(datasets, list):
+        return [(d["name"], d) for d in datasets if isinstance(d, dict) and "name" in d]
+    if isinstance(datasets, dict):
+        return [(n, i if isinstance(i, dict) else {}) for n, i in datasets.items()]
+    return []
+
+
+# --- dimension/metric rendering helpers (list vs dict API formats) ---
+
+
+def _print_attributes(dataset_info: dict) -> None:
+    attrs = dataset_info.get("attributes")
+    if not isinstance(attrs, dict):
+        return
+    if "displayName" in attrs:
+        click.echo(f"Dataset: {attrs['displayName']}")
+    if "currentYear" in attrs:
+        click.echo(f"Current Year: {attrs['currentYear']}")
+    click.echo()
+
+
+def _print_dim_list(dims: list) -> None:
+    for dim in dims:
+        if isinstance(dim, dict) and "name" in dim:
+            click.echo(f"  - {dim['name']}")
+            if "levelsStored" in dim:
+                click.echo(f"    Levels: {dim['levelsStored']}")
+
+
+def _print_dim_dict(dims: dict) -> None:
+    for dim_name, dim_info in dims.items():
+        click.echo(f"  - {dim_name}")
+        if isinstance(dim_info, dict):
+            if "title" in dim_info:
+                click.echo(f"    Title: {dim_info['title']}")
+            if "description" in dim_info:
+                click.echo(f"    Description: {dim_info['description']}")
+            if "hierarchyLevels" in dim_info:
+                click.echo(f"    Hierarchy levels: {dim_info['hierarchyLevels']}")
+
+
+def _print_dimensions_section(dataset_info: dict) -> None:
+    dims = dataset_info.get("dimensions")
+    if not isinstance(dims, list | dict):
+        return
+    click.echo(f"{click.style('Dimensions:', bold=True)}")
+    if isinstance(dims, list):
+        _print_dim_list(dims)
+    else:
+        _print_dim_dict(dims)
+    click.echo()
+
+
+def _print_metrics_list(metrics: list) -> None:
+    for metric in metrics:
+        if isinstance(metric, dict) and "name" in metric:
+            click.echo(f"  - {metric['name']}")
+
+
+def _print_metrics_dict(metrics: dict) -> None:
+    for metric_name, metric_info in metrics.items():
+        if isinstance(metric_info, dict) and "title" in metric_info:
+            click.echo(f"  - {metric_name}: {metric_info['title']}")
+        else:
+            click.echo(f"  - {metric_name}")
+
+
+def _print_metrics_section(dataset_info: dict) -> None:
+    metrics = dataset_info.get("metrics")
+    if not isinstance(metrics, list | dict):
+        return
+    click.echo(f"{click.style('Available Metrics:', bold=True)}")
+    if isinstance(metrics, list):
+        _print_metrics_list(metrics)
+    else:
+        _print_metrics_dict(metrics)
+    click.echo()
+
+
 @discover.command(name="datasets")
 @click.option("--json", "output_json", is_flag=True, help="Output as JSON")
 @click.option("--descriptions", "-d", is_flag=True, help="Include full dataset descriptions")
@@ -53,127 +186,19 @@ def discover_datasets(output_json: bool, descriptions: bool) -> None:
 
         if output_json:
             click.echo(json.dumps(definitions, indent=2))
-        else:
-            click.echo("\n=== Available Datasets ===\n")
+            return
 
-            # Handle the response based on its structure
-            if isinstance(definitions, dict) and "datasets" in definitions:
-                datasets = definitions["datasets"]
+        click.echo("\n=== Available Datasets ===\n")
 
-                if isinstance(datasets, list):
-                    for dataset_info in datasets:
-                        if isinstance(dataset_info, dict) and "name" in dataset_info:
-                            dataset_name = dataset_info["name"]
+        datasets = definitions.get("datasets") if isinstance(definitions, dict) else None
+        entries = _iter_datasets(datasets)
+        if not entries:
+            click.echo("Raw API response:")
+            click.echo(json.dumps(definitions, indent=2))
+            return
 
-                            # Dataset name
-                            click.echo(f"{click.style(dataset_name, bold=True, fg='cyan')}")
-
-                            # Title (if available)
-                            if "title" in dataset_info:
-                                click.echo(f"  {dataset_info['title']}")
-
-                            # Versions
-                            if "versions" in dataset_info:
-                                versions = dataset_info["versions"]
-                                if isinstance(versions, list):
-                                    version_str = ", ".join(versions[:5])
-                                    if len(versions) > 5:
-                                        version_str += f" ... (+{len(versions) - 5} more)"
-                                    click.echo(f"  Versions: {version_str}")
-
-                            # Description (if flag is set)
-                            if descriptions and "description" in dataset_info:
-                                desc = dataset_info["description"]
-                                # Extract the complete description paragraph(s) from the first section
-                                lines = desc.split("\n")
-                                description_lines = []
-                                in_description = False
-
-                                for line in lines:
-                                    # Start capturing after "# Description" header
-                                    if line.strip().startswith("# Description"):
-                                        in_description = True
-                                        continue
-                                    # Stop at the next section header
-                                    elif line.strip().startswith("#") and in_description:
-                                        break
-                                    # Capture non-empty lines in the description section
-                                    elif in_description and line.strip():
-                                        description_lines.append(line.strip())
-
-                                # Join the description lines into a paragraph
-                                if description_lines:
-                                    summary = " ".join(description_lines)
-                                    # Wrap long descriptions for better terminal display
-                                    wrapped = textwrap.fill(
-                                        summary,
-                                        width=100,
-                                        initial_indent="  Description: ",
-                                        subsequent_indent="              ",
-                                    )
-                                    click.echo(wrapped)
-
-                            click.echo()
-                elif isinstance(datasets, dict):
-                    # Handle dict format
-                    for dataset_name, dataset_info in datasets.items():
-                        click.echo(f"{click.style(dataset_name, bold=True, fg='cyan')}")
-
-                        if isinstance(dataset_info, dict):
-                            # Title (if available)
-                            if "title" in dataset_info:
-                                click.echo(f"  {dataset_info['title']}")
-
-                            # Versions
-                            if "versions" in dataset_info:
-                                versions = dataset_info["versions"]
-                                if isinstance(versions, list):
-                                    version_str = ", ".join(versions[:5])
-                                    if len(versions) > 5:
-                                        version_str += f" ... (+{len(versions) - 5} more)"
-                                    click.echo(f"  Versions: {version_str}")
-
-                            # Description (if flag is set)
-                            if descriptions and "description" in dataset_info:
-                                desc = dataset_info["description"]
-                                # Extract the complete description paragraph(s) from the first section
-                                lines = desc.split("\n")
-                                description_lines = []
-                                in_description = False
-
-                                for line in lines:
-                                    # Start capturing after "# Description" header
-                                    if line.strip().startswith("# Description"):
-                                        in_description = True
-                                        continue
-                                    # Stop at the next section header
-                                    elif line.strip().startswith("#") and in_description:
-                                        break
-                                    # Capture non-empty lines in the description section
-                                    elif in_description and line.strip():
-                                        description_lines.append(line.strip())
-
-                                # Join the description lines into a paragraph
-                                if description_lines:
-                                    summary = " ".join(description_lines)
-                                    # Wrap long descriptions for better terminal display
-                                    wrapped = textwrap.fill(
-                                        summary,
-                                        width=100,
-                                        initial_indent="  Description: ",
-                                        subsequent_indent="              ",
-                                    )
-                                    click.echo(wrapped)
-
-                        click.echo()
-                else:
-                    # Unknown format, show raw data
-                    click.echo(json.dumps(definitions, indent=2))
-            else:
-                # Unknown structure, show raw
-                click.echo("Raw API response:")
-                click.echo(json.dumps(definitions, indent=2))
-
+        for name, info in entries:
+            _print_dataset_entry(name, info, descriptions)
     except Exception as e:
         click.echo(f"Error fetching datasets: {e}", err=True)
         sys.exit(1)
@@ -192,65 +217,45 @@ def discover_dimensions(dataset: str, datarun: str, output_json: bool) -> None:
 
         if output_json:
             click.echo(json.dumps(dataset_info, indent=2))
-        else:
-            click.echo(f"\n=== Dimensions for {click.style(dataset, bold=True, fg='cyan')} ({datarun}) ===\n")
+            return
 
-            # Show dataset attributes if available
-            if "attributes" in dataset_info and isinstance(dataset_info["attributes"], dict):
-                attrs = dataset_info["attributes"]
-                if "displayName" in attrs:
-                    click.echo(f"Dataset: {attrs['displayName']}")
-                if "currentYear" in attrs:
-                    click.echo(f"Current Year: {attrs['currentYear']}")
-                click.echo()
-
-            # Extract dimensions (list format)
-            if "dimensions" in dataset_info and isinstance(dataset_info["dimensions"], list):
-                click.echo(f"{click.style('Dimensions:', bold=True)}")
-                for dim in dataset_info["dimensions"]:
-                    if isinstance(dim, dict) and "name" in dim:
-                        dim_name = dim["name"]
-                        click.echo(f"  - {dim_name}")
-                        if "levelsStored" in dim:
-                            click.echo(f"    Levels: {dim['levelsStored']}")
-                click.echo()
-
-            # Extract dimensions (dict format - old)
-            elif "dimensions" in dataset_info and isinstance(dataset_info["dimensions"], dict):
-                click.echo(f"{click.style('Dimensions:', bold=True)}")
-                for dim_name, dim_info in dataset_info["dimensions"].items():
-                    click.echo(f"  - {dim_name}")
-                    if isinstance(dim_info, dict):
-                        if "title" in dim_info:
-                            click.echo(f"    Title: {dim_info['title']}")
-                        if "description" in dim_info:
-                            click.echo(f"    Description: {dim_info['description']}")
-                        if "hierarchyLevels" in dim_info:
-                            levels = dim_info["hierarchyLevels"]
-                            click.echo(f"    Hierarchy levels: {levels}")
-                click.echo()
-
-            # Extract metrics (list format)
-            if "metrics" in dataset_info and isinstance(dataset_info["metrics"], list):
-                click.echo(f"{click.style('Available Metrics:', bold=True)}")
-                for metric in dataset_info["metrics"]:
-                    if isinstance(metric, dict) and "name" in metric:
-                        click.echo(f"  - {metric['name']}")
-                click.echo()
-
-            # Extract metrics (dict format - old)
-            elif "metrics" in dataset_info and isinstance(dataset_info["metrics"], dict):
-                click.echo(f"{click.style('Available Metrics:', bold=True)}")
-                for metric_name, metric_info in dataset_info["metrics"].items():
-                    if isinstance(metric_info, dict) and "title" in metric_info:
-                        click.echo(f"  - {metric_name}: {metric_info['title']}")
-                    else:
-                        click.echo(f"  - {metric_name}")
-                click.echo()
-
+        click.echo(f"\n=== Dimensions for {click.style(dataset, bold=True, fg='cyan')} ({datarun}) ===\n")
+        _print_attributes(dataset_info)
+        _print_dimensions_section(dataset_info)
+        _print_metrics_section(dataset_info)
     except Exception as e:
         click.echo(f"Error fetching dimensions: {e}", err=True)
         sys.exit(1)
+
+
+def _hierarchy_level(item: dict) -> int:
+    if "level" in item:
+        return int(item.get("level", 0))
+    if "level_name" in item:
+        return int(item.get("level_name", "0")) - 1
+    return 0
+
+
+def _print_hierarchy_item(item: dict) -> None:
+    level = _hierarchy_level(item)
+    indent = "  " * level
+    name = item.get("name", "Unknown")
+    code = item.get("display_id") or item.get("child") or item.get("id", "")
+    if level == 0:
+        click.echo(f"{indent}{click.style(name, bold=True)} [{code}]")
+    else:
+        click.echo(f"{indent}  {name} [{code}]")
+
+
+def _print_hierarchy(items: list, limit: int) -> None:
+    shown = 0
+    for item in items:
+        if limit > 0 and shown >= limit:
+            click.echo(f"\n... and {len(items) - shown} more items")
+            break
+        if isinstance(item, dict):
+            _print_hierarchy_item(item)
+            shown += 1
 
 
 @discover.command(name="hierarchy")
@@ -268,64 +273,32 @@ def discover_hierarchy(
 
     try:
         if output_csv:
-            # Use DataFrame method for CSV output
-            df = conn.get_dimension_hierarchy_df(dataset, dimension, datarun)
+            _print_hierarchy_csv(conn, dataset, dimension, datarun, limit)
+            return
 
-            # Limit the output if specified
-            if limit > 0 and len(df) > limit:
-                df = df.head(limit)
-                click.echo(f"# Showing first {limit} items", err=True)
+        hierarchy_data = conn.get_meta_dataset_dimension(dataset, dimension, datarun)
+        if output_json:
+            click.echo(json.dumps(hierarchy_data, indent=2))
+            return
 
-            click.echo(df.to_csv(index=False))
+        click.echo(f"\n=== Hierarchy for {click.style(dimension, bold=True, fg='cyan')} in {dataset} ({datarun}) ===\n")
+        if isinstance(hierarchy_data, dict) and "hierarchy" in hierarchy_data:
+            _print_hierarchy(hierarchy_data["hierarchy"], limit)
+            click.echo()
         else:
-            hierarchy_data = conn.get_meta_dataset_dimension(dataset, dimension, datarun)
-
-            if output_json:
-                click.echo(json.dumps(hierarchy_data, indent=2))
-            else:
-                click.echo(
-                    f"\n=== Hierarchy for {click.style(dimension, bold=True, fg='cyan')} in {dataset} ({datarun}) ===\n"
-                )
-
-                if isinstance(hierarchy_data, dict) and "hierarchy" in hierarchy_data:
-                    items = hierarchy_data["hierarchy"]
-
-                    # Show hierarchy structure
-                    shown = 0
-                    for item in items:
-                        if limit > 0 and shown >= limit:
-                            remaining = len(items) - shown
-                            click.echo(f"\n... and {remaining} more items")
-                            break
-
-                        if isinstance(item, dict):
-                            # Try different keys for level
-                            if "level" in item:
-                                level = item.get("level", 0)
-                            elif "level_name" in item:
-                                level = int(item.get("level_name", "0")) - 1
-                            else:
-                                level = 0
-
-                            indent = "  " * level
-                            name = item.get("name", "Unknown")
-                            # Try different keys for ID
-                            code = item.get("display_id") or item.get("child") or item.get("id", "")
-
-                            # Format output based on level
-                            if level == 0:
-                                click.echo(f"{indent}{click.style(name, bold=True)} [{code}]")
-                            else:
-                                click.echo(f"{indent}  {name} [{code}]")
-
-                            shown += 1
-                    click.echo()
-                else:
-                    click.echo(json.dumps(hierarchy_data, indent=2))
-
+            click.echo(json.dumps(hierarchy_data, indent=2))
     except Exception as e:
         click.echo(f"Error fetching hierarchy: {e}", err=True)
         sys.exit(1)
+
+
+def _print_hierarchy_csv(conn: CoreLMIConnection, dataset: str, dimension: str, datarun: str, limit: int) -> None:
+    """Fetch the hierarchy as a DataFrame and print it as CSV (optionally limited)."""
+    df = conn.get_dimension_hierarchy_df(dataset, dimension, datarun)
+    if limit > 0 and len(df) > limit:
+        df = df.head(limit)
+        click.echo(f"# Showing first {limit} items", err=True)
+    click.echo(df.to_csv(index=False))
 
 
 @cli.group()

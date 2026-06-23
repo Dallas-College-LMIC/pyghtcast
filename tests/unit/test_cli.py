@@ -55,7 +55,8 @@ class TestCLI:
     def test_discover_datasets_json(self, mock_get_conn, runner):
         """Test discover datasets with JSON output."""
         mock_conn = MagicMock()
-        mock_conn.get_meta.return_value = {
+        # ponytail: the datasets command uses the /meta/definitions endpoint, not /meta
+        mock_conn.get_meta_definitions.return_value = {
             "datasets": {
                 "emsi.us.occupation": {
                     "title": "US Occupation Data",
@@ -76,7 +77,7 @@ class TestCLI:
     def test_discover_datasets_formatted(self, mock_get_conn, runner):
         """Test discover datasets with formatted output."""
         mock_conn = MagicMock()
-        mock_conn.get_meta.return_value = {
+        mock_conn.get_meta_definitions.return_value = {
             "datasets": {
                 "emsi.us.occupation": {
                     "title": "US Occupation Data",
@@ -173,15 +174,28 @@ class TestCLI:
         assert "00-0000" in result.output
 
     @patch("pyghtcast.cli.get_connection")
-    def test_discover_definitions(self, mock_get_conn, runner):
-        """Test discover definitions command."""
+    def test_discover_datasets_descriptions(self, mock_get_conn, runner):
+        """Test discover datasets with the --descriptions flag.
+
+        Covers the description-rendering path formerly exposed by the
+        removed 'discover definitions' command (consolidated into datasets).
+        """
         mock_conn = MagicMock()
-        mock_conn.get_meta_definitions.return_value = {"version": "1.0", "description": "API definitions"}
+        mock_conn.get_meta_definitions.return_value = {
+            "datasets": {
+                "emsi.us.occupation": {
+                    "title": "US Occupation Data",
+                    "description": "# Description\nOccupation-level employment data\n# Other\nMore",
+                    "versions": ["2025.3"],
+                }
+            }
+        }
         mock_get_conn.return_value = mock_conn
 
-        result = runner.invoke(cli, ["discover", "definitions"])
+        result = runner.invoke(cli, ["discover", "datasets", "--descriptions"])
         assert result.exit_code == 0
-        assert "version" in result.output
+        assert "emsi.us.occupation" in result.output
+        assert "Occupation-level employment data" in result.output
 
     def test_query_build(self, runner):
         """Test query build command (placeholder)."""
@@ -208,7 +222,7 @@ class TestCLI:
     def test_error_handling(self, mock_get_conn, runner):
         """Test error handling in CLI."""
         mock_conn = MagicMock()
-        mock_conn.get_meta.side_effect = Exception("API Error")
+        mock_conn.get_meta_definitions.side_effect = Exception("API Error")
         mock_get_conn.return_value = mock_conn
 
         result = runner.invoke(cli, ["discover", "datasets"])
