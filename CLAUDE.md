@@ -22,10 +22,10 @@ uv run --with ruff ruff check . --fix
 uv run --with ruff ruff format .
 
 # Type checking
-uv run --with mypy mypy pyghtcast
+uv run --extra dev mypy pyghtcast
 
 # All checks in one command
-uv run --with ruff ruff check . && uv run --with ruff ruff format . && uv run --with mypy mypy pyghtcast
+uv run --with ruff ruff check . && uv run --with ruff ruff format . && uv run --extra dev mypy pyghtcast
 ```
 
 ### Testing

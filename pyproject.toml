@@ -72,20 +72,10 @@ warn_no_return = true
 warn_unreachable = true
 strict_equality = true
 
-# pandas/requests/click/pytest stubs are listed as dev/runtime deps but the nix
-# mypy pre-commit hook (and `uv run --with mypy`) may run without them; ignore
-# missing imports so all environments typecheck cleanly (stubs used if present).
-[[tool.mypy.overrides]]
-module = ["pandas", "pandas.*", "requests", "requests.*", "click", "click.*", "pytest", "pytest.*"]
-ignore_missing_imports = true
-
-# Tests are not shipped library code; relax strictness for the pre-commit
-# hook which passes test paths to mypy directly (resolved as bare module names
-# like `test_cli`, hence the explicit names rather than a glob).
-[[tool.mypy.overrides]]
-module = ["tests.*", "test_cli", "test_base", "test_sanity", "test_connection"]
-disallow_untyped_defs = false
-check_untyped_defs = false
+# Type stubs (pandas-stubs, types-requests, types-click) are supplied to the
+# pre-commit mypy hook via flake.nix `settings.binPath`, and to the manual
+# `uv run --extra dev mypy pyghtcast` command via the dev extra. No
+# ignore_missing_imports band-aid is needed.
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

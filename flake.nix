@@ -78,7 +78,20 @@
               };
               mypy = {
                 enable = true;
-                # Type checking
+                # Run mypy from a python env carrying the type stubs, so the
+                # hook resolves pandas/requests/click instead of treating them
+                # as Any (the bare nix mypy ships without any project deps).
+                settings.binPath = "${pkgs.python313.withPackages (p: [
+                  p.mypy
+                  p.pandas-stubs
+                  p.types-requests
+                  p.types-click
+                ])}/bin/mypy";
+                # Type-check the library only (matches `mypy pyghtcast`):
+                # tests aren't shipped library code and pre-commit passes their
+                # paths to mypy as bare module names, which breaks per-module
+                # config overrides.
+                files = "^pyghtcast/";
               };
 
               # General file hygiene

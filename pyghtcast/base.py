@@ -193,7 +193,7 @@ class EmsiBaseConnection:
 
     def get_docs(self) -> str:
         response = self.download_data("docs")
-        return cast(str, response.text)
+        return response.text
 
 
 class JobPostingsConnection(EmsiBaseConnection):
