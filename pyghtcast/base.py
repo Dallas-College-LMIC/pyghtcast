@@ -185,14 +185,22 @@ class EmsiBaseConnection:
 class JobPostingsConnection(EmsiBaseConnection):
     """Class for handling connections to APIs built on Emsi's postings data
 
-    Deleted Attributes:
+    Attributes:
         base_url (str): the base url that is built off for each request
         scope (str): the scope used in the request for a token (in the Base class above)
         token (str): the token used in the request for data
     """
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, username: str = None, password: str = None) -> None:
+        import os
+
+        username = username or os.environ.get("LCAPI_USER")
+        password = password or os.environ.get("LCAPI_PASS")
+        super().__init__(username, password)
+        self.base_url = "https://emsiservices.com/jpa/"
+        self.scope = "postings:us"
+        self.get_new_token()
+        self.name = "US_Postings"
 
     def post_totals(self, payload: dict, querystring: dict = None) -> dict:
         """

@@ -1,6 +1,6 @@
 import pandas as pd
 
-from . import coreLmi, openSkills
+from . import base, coreLmi, openSkills
 
 
 class Lightcast:
@@ -23,6 +23,22 @@ class Lightcast:
 
     def query_corelmi(self, dataset: str, query: dict, datarun: str = "2025.3") -> pd.DataFrame:
         return self.conn.post_retrieve_df(dataset, query, datarun)
+
+
+class JobPostings:
+    conn: base.JobPostingsConnection | None = None
+
+    def __init__(self):
+        self.conn = base.JobPostingsConnection()
+
+    def totals(self, payload: dict) -> dict:
+        return self.conn.post_totals(payload)
+
+    def rankings(self, facet: str, payload: dict) -> pd.DataFrame:
+        return self.conn.post_rankings_df(facet, payload)
+
+    def timeseries(self, payload: dict) -> dict:
+        return self.conn.post_timeseries(payload)
 
 
 class Skills:
