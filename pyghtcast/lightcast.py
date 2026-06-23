@@ -4,7 +4,7 @@ from . import coreLmi, openSkills
 
 
 class Lightcast:
-    conn: coreLmi.CoreLMIConnection | None = None
+    conn: coreLmi.CoreLMIConnection
 
     def __init__(self, username: str, password: str):
         self.conn = coreLmi.CoreLMIConnection(username, password)
@@ -26,7 +26,7 @@ class Lightcast:
 
 
 class Skills:
-    conn: openSkills.SkillsClassificationConnection | None = None
+    conn: openSkills.SkillsClassificationConnection
 
     def __init__(self, username: str, password: str):
         self.conn = openSkills.SkillsClassificationConnection(username, password)

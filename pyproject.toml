@@ -71,6 +71,13 @@ warn_no_return = true
 warn_unreachable = true
 strict_equality = true
 
+# pandas/requests stubs are listed as dev deps but the nix mypy pre-commit hook
+# and `uv run --with mypy` run without them; ignore missing imports so both
+# environments typecheck cleanly (stubs are still used when present).
+[[tool.mypy.overrides]]
+module = ["pandas", "pandas.*", "requests", "requests.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]

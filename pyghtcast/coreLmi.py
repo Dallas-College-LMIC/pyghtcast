@@ -1,5 +1,6 @@
 import time
 from datetime import datetime, timedelta
+from typing import cast
 
 import pandas as pd
 import requests
@@ -8,12 +9,15 @@ from .base import EmsiBaseConnection
 
 
 class Limiter:
-    def __init__(self):
+    def __init__(self) -> None:
+        self.reset()
+
+    def reset(self) -> None:
         self.start = datetime.now()
         self.expiration = self.start + timedelta(minutes=5)
         self.upper_limit = 300
 
-    def smart_limit(self):
+    def smart_limit(self) -> float:
         """
         Gets the time left before the quota reset, then divides the time by the upper limit left
         this results in an even distribution of requests and ensures never returning a 429 response
@@ -21,14 +25,14 @@ class Limiter:
         time_left = self.seconds_left()
 
         if time_left <= 0:
-            self.__init__()
+            self.reset()
 
         if self.upper_limit == 0:
             return time_left
 
         return time_left / self.upper_limit
 
-    def seconds_left(self):
+    def seconds_left(self) -> int:
         return (self.expiration - datetime.now()).seconds
 
 
@@ -43,7 +47,7 @@ class CoreLMIConnection(EmsiBaseConnection):
         token (str): token received back from the OAuth server
     """
 
-    def __init__(self, username, password) -> None:
+    def __init__(self, username: str, password: str) -> None:
         """Summary"""
 
         super().__init__(username, password)
@@ -55,12 +59,20 @@ class CoreLMIConnection(EmsiBaseConnection):
 
         self.name = "Core_LMI"
 
-    def download_data(self, api_endpoint: str, payload: dict = None, smart_limit: bool = False) -> requests.Response:
+    def download_data(
+        self,
+        api_endpoint: str,
+        payload: dict | None = None,
+        querystring: dict | None = None,
+        smart_limit: bool = False,
+    ) -> requests.Response:
         """Needs more work for downloading the data from Agnitio, since it does not automatically handle the rate liimit from the API
 
         Args:
             api_endpoint (str): the url endpoint to query
             payload (dict, optional): the payload to pass to the API. if no payload, then a GET request will be made.
+            querystring (dict, optional): additional url parameters to pass to the API
+            smart_limit (bool, optional): if True, sleeps to spread requests across the quota window
 
         Returns:
             requests.Response: The response from the server
@@ -75,10 +87,10 @@ class CoreLMIConnection(EmsiBaseConnection):
 
         url = self.base_url + api_endpoint
         if payload is None:
-            response = self.get_data(url)
+            response = self.get_data(url, querystring)
 
         else:
-            response = self.post_data(url, payload)
+            response = self.post_data(url, payload, querystring)
 
         self.limiter.upper_limit -= 1
 
@@ -91,10 +103,10 @@ class CoreLMIConnection(EmsiBaseConnection):
 
         return response
 
-    def get_meta(self):
+    def get_meta(self) -> dict:
         response = self.download_data("meta")
 
-        return response.json()
+        return cast(dict, response.json())
 
     def get_meta_definitions(self) -> dict:
         """
@@ -105,7 +117,7 @@ class CoreLMIConnection(EmsiBaseConnection):
         """
         response = self.download_data("meta/definitions")
 
-        return response.json()
+        return cast(dict, response.json())
 
     def get_meta_dataset(self, dataset: str, datarun: str) -> dict:
         """
@@ -120,7 +132,7 @@ class CoreLMIConnection(EmsiBaseConnection):
         """
         response = self.download_data(f"meta/dataset/{dataset}/{datarun}")
 
-        return response.json()
+        return cast(dict, response.json())
 
     def get_meta_dataset_dimension(self, dataset: str, dimension: str, datarun: str) -> dict:
         """
@@ -136,7 +148,7 @@ class CoreLMIConnection(EmsiBaseConnection):
         """
         response = self.download_data(f"meta/dataset/{dataset}/{datarun}/{dimension}")
 
-        return response.json()
+        return cast(dict, response.json())
 
     def post_retrieve_data(self, dataset: str, payload: dict, datarun: str) -> dict:
         """
@@ -152,7 +164,7 @@ class CoreLMIConnection(EmsiBaseConnection):
         """
         response = self.download_data(f"{dataset}/{datarun}", payload)
 
-        return response.json()
+        return cast(dict, response.json())
 
     def get_dimension_hierarchy_df(self, dataset: str, dimension: str, datarun: str) -> pd.DataFrame:
         """
