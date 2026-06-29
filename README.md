@@ -29,6 +29,46 @@ pyghtcast query example --dataset occupation
 
 See the [CLI Documentation](CLI_DOCUMENTATION.md) for complete usage instructions.
 
+### Using the MCP server
+
+Pyghtcast ships an optional [Model Context Protocol](https://modelcontextprotocol.io/) server that exposes the Core LMI surface as tools an LLM (Claude Desktop, Claude Code, etc.) can call directly.
+
+Install the `mcp` extra:
+
+```bash
+pip install "pyghtcast[mcp]"
+# or run it ad-hoc without installing:
+uvx --from "pyghtcast[mcp]" pyghtcast-mcp
+```
+
+Add it to an MCP host config (Claude Desktop's `claude_desktop_config.json` or Claude Code's `.mcp.json`). Credentials are passed via environment variables, the same `LCAPI_USER` / `LCAPI_PASS` the library and CLI use:
+
+```json
+{
+  "mcpServers": {
+    "pyghtcast": {
+      "command": "uvx",
+      "args": ["--from", "pyghtcast[mcp]", "pyghtcast-mcp"],
+      "env": {
+        "LCAPI_USER": "your_username",
+        "LCAPI_PASS": "your_password"
+      }
+    }
+  }
+}
+```
+
+The server runs over stdio and exposes four read-only tools:
+
+| Tool | What it does |
+|---|---|
+| `list_datasets` | List available Core LMI datasets and their versions |
+| `describe_dataset` | Show dimensions and metrics for one dataset/datarun |
+| `dimension_hierarchy` | View the code/name tree of a dimension (e.g. Area, Occupation) |
+| `query_corelmi` | Run a query (metrics + optional constraints) and get rows back as JSON |
+
+The data-returning tools accept a `limit` (default 50) as a context-window guard; the response reports the total `count`/`row_count` and a `truncated` flag so the caller can tell a full result from a sliced one.
+
 ### Using the Python API
 
 ```python

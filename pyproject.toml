@@ -17,8 +17,10 @@ dependencies = [
 
 [project.scripts]
 pyghtcast = "pyghtcast.cli:cli"
+pyghtcast-mcp = "pyghtcast.mcp_server:main"
 
 [project.optional-dependencies]
+mcp = ["mcp[cli]>=1.27,<2"]
 dev = [
     "mypy>=1.0.0",
     "ruff>=0.3.0",
@@ -27,6 +29,8 @@ dev = [
     "types-click>=7.1.0",
     "pandas-stubs>=2.0.0",
     "types-requests>=2.0.0",
+    "mcp[cli]>=1.27,<2",
+    "anyio>=4.0.0",
 ]
 
 [build-system]
@@ -72,10 +76,9 @@ warn_no_return = true
 warn_unreachable = true
 strict_equality = true
 
-# Type stubs (pandas-stubs, types-requests, types-click) are supplied to the
-# pre-commit mypy hook via flake.nix `settings.binPath`, and to the manual
-# `uv run --extra dev mypy pyghtcast` command via the dev extra. No
-# ignore_missing_imports band-aid is needed.
+# Type stubs (pandas-stubs, types-requests, types-click) resolve naturally
+# under `uv run --extra dev mypy pyghtcast`, the command the pre-commit mypy
+# hook and CLAUDE.md both use. No ignore_missing_imports band-aid is needed.
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

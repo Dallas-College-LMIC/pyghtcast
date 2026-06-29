@@ -78,15 +78,25 @@
               };
               mypy = {
                 enable = true;
-                # Run mypy from a python env carrying the type stubs, so the
-                # hook resolves pandas/requests/click instead of treating them
-                # as Any (the bare nix mypy ships without any project deps).
+                # Run mypy from a self-contained nix python env carrying the
+                # type stubs and mcp, so the hook resolves
+                # pandas/requests/click/mcp instead of treating them as Any.
+                # A `uv run`-based hook would be nicer (uv = single source of
+                # truth) but it cannot run in the pure sandbox that
+                # `nix flake check` / pre-commit-check use (no /bin/sh, no
+                # network, no .venv), so we keep the self-contained nix env.
                 settings.binPath = "${pkgs.python313.withPackages (p: [
                   p.mypy
                   p.pandas-stubs
                   p.types-requests
                   p.types-click
+                  p.mcp
                 ])}/bin/mypy";
+                # nixpkgs ships mcp 1.12.4 while the project pins >=1.27
+                # (runtime 1.28.1). The FastMCP API surface mypy inspects
+                # (FastMMP ctor, @tool, .run) is identical across both versions,
+                # so this typechecks the same things; uv remains the source of
+                # truth for the dev workflow (`uv run --extra dev mypy pyghtcast`).
                 # Type-check the library only (matches `mypy pyghtcast`):
                 # tests aren't shipped library code and pre-commit passes their
                 # paths to mypy as bare module names, which breaks per-module
