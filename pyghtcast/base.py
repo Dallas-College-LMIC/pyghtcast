@@ -270,9 +270,9 @@ class JobPostingsConnection(EmsiBaseConnection):
 
         try:
             return cast(dict, response.json()["data"])
-        except Exception:
+        except (KeyError, ValueError):
             print(response.text)
-            return cast(dict, response.json()["data"])
+            raise
 
     def post_rankings(self, facet: str, payload: dict, querystring: dict | None = None) -> dict:
         """
