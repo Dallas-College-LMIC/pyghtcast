@@ -27,6 +27,7 @@ from typing import Any
 
 import uvicorn
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
@@ -206,8 +207,32 @@ class ApiKeyMiddleware:
         await response(scope, receive, send)
 
 
+def _transport_security() -> TransportSecuritySettings | None:
+    """DNS-rebinding protection config from PYGHTCAST_ALLOWED_HOSTS.
+
+    FastMCP validates the Host header on the /mcp endpoint when binding
+    non-localhost; without this, requests arriving via a public hostname get
+    "Invalid Host header". Comma-separated hostnames; port variants are
+    allowed automatically.
+    """
+    raw = os.environ.get("PYGHTCAST_ALLOWED_HOSTS", "")
+    hosts = [h.strip() for h in raw.split(",") if h.strip()]
+    if not hosts:
+        return None
+    allowed_hosts: list[str] = []
+    for h in hosts:
+        allowed_hosts += [h, f"{h}:80", f"{h}:443"]
+    return TransportSecuritySettings(
+        allowed_hosts=allowed_hosts,
+        allowed_origins=[f"https://{h}" for h in hosts],
+    )
+
+
 def build_http_app() -> ApiKeyMiddleware:
     """The Streamable HTTP ASGI app wrapped in API-key auth."""
+    security = _transport_security()
+    if security is not None:
+        mcp.settings.transport_security = security
     return ApiKeyMiddleware(mcp.streamable_http_app(), api_keys=load_api_keys())
 
 

@@ -122,3 +122,29 @@ class TestMainTransports:
         ):
             main()
         mock_uvicorn.run.assert_called_once_with(mock_app, host="0.0.0.0", port=8080)
+
+
+class TestAllowedHosts:
+    @patch.dict(os.environ, {"PYGHTCAST_ALLOWED_HOSTS": "mcp.example.com"})
+    def test_allowed_hosts_configures_transport_security(self) -> None:
+        from pyghtcast.mcp_server import _transport_security
+
+        ts = _transport_security()
+        assert ts is not None
+        assert "mcp.example.com" in ts.allowed_hosts
+        assert "mcp.example.com:443" in ts.allowed_hosts
+        assert "https://mcp.example.com" in ts.allowed_origins
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_no_env_means_no_override(self) -> None:
+        from pyghtcast.mcp_server import _transport_security
+
+        assert _transport_security() is None
+
+    @patch.dict(os.environ, {"PYGHTCAST_API_KEYS": "k", "PYGHTCAST_ALLOWED_HOSTS": "mcp.example.com"})
+    def test_build_http_app_applies_transport_security(self) -> None:
+        from pyghtcast.mcp_server import mcp as server
+
+        build_http_app()
+        assert server.settings.transport_security is not None
+        assert "mcp.example.com" in server.settings.transport_security.allowed_hosts
