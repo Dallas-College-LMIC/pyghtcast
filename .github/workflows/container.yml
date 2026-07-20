@@ -39,9 +39,14 @@ jobs:
         run: nix build .#containerOCI -o oci-result
 
       - name: Push to GHCR
+        env:
+          # The runner's /etc/containers/registries.conf is v1 format, which
+          # skopeo rejects; point it at an empty (valid v2) file instead.
+          CONTAINERS_REGISTRIES_CONF: /tmp/registries.conf
         run: |
           mkdir -p ~/.config/containers
           echo '{"default":[{"type":"insecureAcceptAnything"}]}' > ~/.config/containers/policy.json
+          touch /tmp/registries.conf
           IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/pyghtcast-mcp
           nix run .#skopeo -- copy \
             --dest-creds "${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}" \
