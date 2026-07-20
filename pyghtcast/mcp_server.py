@@ -19,11 +19,20 @@ of rows.
 
 from __future__ import annotations
 
+import argparse
+import logging
 import os
+import secrets as _secrets
+from typing import Any
 
+import uvicorn
 from mcp.server.fastmcp import FastMCP
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 
 from .coreLmi import CoreLMIConnection
+
+logger = logging.getLogger("pyghtcast.mcp")
 
 mcp = FastMCP("pyghtcast")
 
@@ -145,9 +154,83 @@ def query_corelmi(
     }
 
 
+@mcp.custom_route("/health", methods=["GET"])
+async def health(request: Request) -> JSONResponse:
+    """Liveness/readiness probe for k8s. Unauthenticated by design."""
+    return JSONResponse({"status": "ok"})
+
+
+def load_api_keys() -> set[str]:
+    """Parse the PYGHTCAST_API_KEYS env var (comma-separated) into a key set."""
+    raw = os.environ.get("PYGHTCAST_API_KEYS", "")
+    return {k.strip() for k in raw.split(",") if k.strip()}
+
+
+class ApiKeyMiddleware:
+    """Raw ASGI middleware gating requests on an X-API-Key header allowlist.
+
+    Deliberately not Starlette's BaseHTTPMiddleware: that buffers responses,
+    which breaks the SSE streaming the Streamable HTTP transport uses.
+    /health stays open so the k8s probe works without a key. An empty
+    allowlist fails closed (rejects everything) rather than open.
+    """
+
+    def __init__(self, app: Any, api_keys: set[str], exempt_paths: tuple[str, ...] = ("/health",)) -> None:
+        self.app = app
+        self.api_keys = api_keys
+        self.exempt_paths = exempt_paths
+
+    async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
+        if scope["type"] != "http" or scope["path"] in self.exempt_paths:
+            await self.app(scope, receive, send)
+            return
+
+        provided = ""
+        for name, value in scope.get("headers", []):
+            if name == b"x-api-key":
+                provided = value.decode()
+                break
+
+        # compare_digest over every key (no early exit) to stay timing-safe.
+        valid = False
+        for key in self.api_keys:
+            if _secrets.compare_digest(key, provided):
+                valid = True
+        if valid:
+            logger.info("authorized request key=%s… path=%s", provided[:8], scope["path"])
+            await self.app(scope, receive, send)
+            return
+
+        logger.warning("rejected request key=%s… path=%s", provided[:8] if provided else "<none>", scope["path"])
+        response = JSONResponse({"error": "invalid or missing API key"}, status_code=401)
+        await response(scope, receive, send)
+
+
+def build_http_app() -> ApiKeyMiddleware:
+    """The Streamable HTTP ASGI app wrapped in API-key auth."""
+    return ApiKeyMiddleware(mcp.streamable_http_app(), api_keys=load_api_keys())
+
+
 def main() -> None:
-    """Entry point for the `pyghtcast-mcp` console script. Runs the stdio server."""
-    mcp.run()
+    """Entry point for the `pyghtcast-mcp` console script.
+
+    Default is stdio (local hosts spawn us as a subprocess). --transport
+    streamable-http serves HTTP with the API-key gate, for remote deployment.
+    """
+    parser = argparse.ArgumentParser(prog="pyghtcast-mcp")
+    parser.add_argument("--transport", choices=["stdio", "streamable-http"], default="stdio")
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=8080)
+    args = parser.parse_args()
+
+    if args.transport == "stdio":
+        mcp.run()
+        return
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
+    if not load_api_keys():
+        logger.warning("PYGHTCAST_API_KEYS is empty: all MCP requests will be rejected (fail-closed)")
+    uvicorn.run(build_http_app(), host=args.host, port=args.port)
 
 
 if __name__ == "__main__":

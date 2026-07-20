@@ -69,6 +69,16 @@ The server runs over stdio and exposes four read-only tools:
 
 The data-returning tools accept a `limit` (default 50) as a context-window guard; the response reports the total `count`/`row_count` and a `truncated` flag so the caller can tell a full result from a sliced one.
 
+#### Remote (HTTP) mode
+
+For shared/team deployment the server also speaks MCP Streamable HTTP, gated by an API-key allowlist:
+
+```bash
+PYGHTCAST_API_KEYS="key1,key2" pyghtcast-mcp --transport streamable-http --host 0.0.0.0 --port 8080
+```
+
+Clients send the key in an `X-API-Key` header (`claude mcp add --transport http lightcast https://host/mcp --header "X-API-Key: key1"`). `/health` is unauthenticated for k8s probes; an empty allowlist rejects all MCP requests (fail-closed). A container image is published by CI to `ghcr.io/dallas-college-lmic/pyghtcast-mcp` (built via `nix build .#containerOCI`).
+
 ### Using the Python API
 
 ```python

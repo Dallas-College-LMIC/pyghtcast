@@ -1,0 +1,53 @@
+name: Build and push MCP container
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "pyghtcast/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "flake.nix"
+      - "flake.lock"
+      - ".github/workflows/container.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Run tests
+        run: uv run --extra dev pytest
+      - name: Type check
+        run: uv run --extra dev mypy pyghtcast
+
+  container:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@v16
+      - uses: DeterminateSystems/magic-nix-cache-action@v9
+
+      - name: Build OCI image
+        run: nix build .#containerOCI -o oci-result
+
+      - name: Push to GHCR
+        run: |
+          mkdir -p ~/.config/containers
+          echo '{"default":[{"type":"insecureAcceptAnything"}]}' > ~/.config/containers/policy.json
+          IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/pyghtcast-mcp
+          nix run .#skopeo -- copy \
+            --dest-creds "${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}" \
+            oci:oci-result:latest \
+            "docker://${IMAGE}:latest"
+          nix run .#skopeo -- copy \
+            --dest-creds "${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}" \
+            oci:oci-result:latest \
+            "docker://${IMAGE}:${GITHUB_SHA::12}"

@@ -26,6 +26,10 @@
       url = "github:cachix/git-hooks.nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # No nixpkgs follows: nix2container's patched skopeo must build against
+    # its own pinned nixpkgs (the patch doesn't apply on current unstable).
+    nix2container.url = "github:nlewo/nix2container";
   };
 
   outputs =
@@ -36,6 +40,7 @@
       pyproject-nix,
       pyproject-build-systems,
       git-hooks,
+      nix2container,
       ...
     }:
     let
@@ -57,6 +62,66 @@
       };
     in
     {
+      # Container image for the MCP server (linux only; deployed to k8s).
+      # Pattern borrowed from persona-mcp: uv2nix virtualenv -> nix2container
+      # layered image -> OCI archive that skopeo can push to a registry.
+      packages = lib.genAttrs [ "x86_64-linux" "aarch64-linux" ] (
+        system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+          python = pkgs.python313;
+          n2c = nix2container.packages.${system}.nix2container;
+          pythonBase = pkgs.callPackage pyproject-nix.build.packages { inherit python; };
+          pythonSet = pythonBase.overrideScope (
+            lib.composeManyExtensions [
+              pyproject-build-systems.overlays.default
+              overlay
+              pyprojectOverrides
+            ]
+          );
+          # Runtime env: base deps + the [mcp] extra. No dev tools in the image.
+          virtualenvProd = pythonSet.mkVirtualEnv "pyghtcast-prod-env" (
+            workspace.deps.default
+            // {
+              pyghtcast = (workspace.deps.default.pyghtcast or [ ]) ++ [ "mcp" ];
+            }
+          );
+          containerEntrypoint = pkgs.writeShellScript "pyghtcast-mcp-entrypoint" ''
+            unset PYTHONPATH
+            exec ${virtualenvProd}/bin/pyghtcast-mcp \
+              --transport streamable-http \
+              --host 0.0.0.0 \
+              --port 8080
+          '';
+          container = n2c.buildImage {
+            name = "pyghtcast-mcp";
+            config = {
+              entrypoint = [ "${containerEntrypoint}" ];
+              ExposedPorts."8080/tcp" = { };
+            };
+            layers = [
+              (n2c.buildLayer {
+                deps = [ virtualenvProd ];
+                maxLayers = 80;
+              })
+            ];
+          };
+          containerOCI =
+            pkgs.runCommand "pyghtcast-mcp-oci"
+              {
+                nativeBuildInputs = [ nix2container.packages.${system}.skopeo-nix2container ];
+              }
+              ''
+                skopeo --insecure-policy copy nix:${container} oci:$out:latest --tmpdir $TMPDIR
+              '';
+        in
+        {
+          inherit virtualenvProd container containerOCI;
+          skopeo = nix2container.packages.${system}.skopeo-nix2container;
+          default = containerOCI;
+        }
+      );
+
       # Pre-commit hooks configuration
       checks = forAllSystems (
         system:

@@ -219,5 +219,6 @@ class TestGetConnection:
 class TestMain:
     @patch("pyghtcast.mcp_server.mcp")
     def test_main_invokes_run(self, mock_mcp: MagicMock) -> None:
-        main()
+        with patch("sys.argv", ["pyghtcast-mcp"]):
+            main()
         mock_mcp.run.assert_called_once_with()
